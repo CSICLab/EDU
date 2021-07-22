@@ -1,0 +1,90 @@
+<!-- <!DOCTYPE html> -->
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="LAB2.css">
+		<link rel="manifest" href="manifest.json">          
+
+	</head>
+	<body>
+		<!-- 收索藍芽 -->
+		<button class="bleconnect" onclick="bleconnectfunc()">Search</button> 
+		<!--  -->
+		<br><br><br><br>
+		<div style="float: left;">
+			<p id = 'test'>
+			</p>
+		</div>
+	</body>
+</html>
+
+<script>
+	if('serviceWorker' in navigator) {
+			// window load後才執行，以免增加頁面讀取的時間
+			window.addEventListener('load', function() {
+				// 建立sw.js
+				navigator.serviceWorker.register('sw.js')
+					.then(function(reg) {
+							console.log(reg.scope); // 看這支sw.js執行的範圍
+						})
+				// 註冊失敗
+					.catch(function(err) {
+							console.log('error: ', err);
+						});
+			});
+		}
+
+	// 藍芽收索
+	function bleconnectfunc(){
+			navigator.bluetooth.requestDevice({
+					optionalServices: [0xa000],
+					//'713d0002-503e-4c75-ba94-3148f18d941e'
+					acceptAllDevices: true//
+				})
+				.then(device => {
+						console.log(device);
+						bluetoothDevice = device;
+						bluetoothDevice.addEventListener('gattserverdisconnected', disconnected);
+						return device.gatt.connect();
+					})
+				.then(server => {
+						return server.getPrimaryService(0xa000);
+					})
+				.then(service => {
+						console.log(service);
+						return service.getCharacteristic(0xa001);
+					})
+				.then(chara => {
+						console.log(chara);
+						let lock = true;
+						chara.startNotifications().then(c => {
+								c.addEventListener('characteristicvaluechanged', function(e){
+										let ecgfromble = Array.from(new Uint8Array(this.value.buffer));
+										//console.log(ecgfromble);
+										ecgfromble.forEach(ecgchart);
+									});
+							})
+					})
+				.catch(error => {console.log(error)});
+		};
+	var test = document.getElementById("test");
+	var blevalue = " ";
+	var buffer,buffer1;
+	
+	function disconnected(event) {
+			console.log("Disconnected by remote device!");
+			bluetoothDevice = null;
+			connected = false;
+		}
+	function ecgchart(input){
+		if(input != 10){
+			buffer = String.fromCharCode(input);
+			blevalue = blevalue + buffer;
+			console.log(blevalue); 
+			test.innerHTML=blevalue;
+		}
+		else{
+			blevalue = " ";
+		}
+	}
+
+</script>
